@@ -1,0 +1,14 @@
+name: ${serviceVariable.name}
+replicaCount: ${serviceVariable.replicas}
+version: ${serviceVariable.version}
+
+image: ${artifact.metadata.image}
+
+createNamespace: true
+namespace: ${infra.kubernetes.namespace}
+
+service: 
+  type: ClusterIP
+  port: 8080
+
+checksum: ${serviceVariable.checksum}

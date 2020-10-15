@@ -1,0 +1,19 @@
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: {{ .Values.name }}-routes
+  labels:
+    version: v1
+  namespace: 'gloo-system'
+spec:
+  routes:
+  - matchers:
+    - prefix: /kafka
+    routeAction:
+      single:
+        subset:
+          values:
+            version: 'release'
+        upstream:
+          name: {{ .Values.name }}
+          namespace: gloo-system

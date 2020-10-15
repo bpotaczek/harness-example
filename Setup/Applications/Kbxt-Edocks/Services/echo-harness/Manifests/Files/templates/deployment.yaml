@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}-{{ .Values.version }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app: {{ .Values.name }}
+    checksum: {{ .Values.checksum }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+      version: {{ .Values.version }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+        version: {{ .Values.version }}
+      annotations:
+        checksum: {{ .Values.checksum }}
+        {{- range .Values.roles }}
+        iam.amazonaws.com/role: {{ . }}
+        {{- end }}
+    spec:
+      containers:
+        - name: {{ .Values.name }}-{{ .Values.version }}
+          image: {{ .Values.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: CORECLR_ENABLE_PROFILING
+            value: "1"
+          - name: CORECLR_PROFILER
+            value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
+          - name: CORECLR_PROFILER_PATH
+            value: "/opt/datadog/Datadog.Trace.ClrProfiler.Native.so"
+          - name: DD_INTEGRATIONS
+            value: "/opt/datadog/integrations.json"
+          - name: DD_DOTNET_TRACER_HOME
+            value: "/opt/datadog"
+          - name: DD_APM_NON_LOCAL_TRAFFIC
+            value: "true"
+          - name: DD_TRACE_ANALYTICS_ENABLED
+            value: "true"
+          - name: DD_AGENT_HOST
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          - name: CONFIGDBCONNECTION
+            valueFrom:
+              secretKeyRef:
+                name: config-connection
+                key: ConfigDbConnection
+          {{- range .Values.connectionStrings }}
+          - name: {{ .name | upper }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .name }}-config
+                key: {{ .name }}
+          {{- end }}
+          {{- range .Values.envVars }}
+          - name: {{ .name | upper }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ .name }}-config
+                key: {{ .name }}
+          {{- end }}
+          {{- if .Values.service }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          {{- end }}
+          resources:
+            {{- with (.Values.resources) }}
+              {{- with (.limits)}}
+            limits: 
+                {{- if and (.memory) }}
+              memory:  {{ .memory }}
+                {{- end}}
+                {{- if and (.cpu) }}
+              cpu:  {{ .cpu }}
+                {{- end}}
+              {{- end}}
+            {{- end}}
+            requests: 
+            {{- if (.Values.resources) }}
+              {{- if (.Values.resources.requests) }}
+              cpu:  {{ .Values.resources.requests.cpu | default "50m" }}
+                {{- if (.Values.resources.requests.memory) }}
+              memory:  {{ .Values.resources.requests.memory }}
+                {{- end}}
+              {{- else}}
+              cpu: 50m
+              {{- end}}
+            {{- else}}
+              cpu: 50m
+            {{- end}}
+      {{- if .Values.service }}
+        # {{- if eq (.Values.service.grpc | default false) false }}
+        #   livenessProbe:
+        #     httpGet:
+        #       path: /healthz
+        #       port: http
+        #   readinessProbe:
+        #     httpGet:
+        #       path: /healthz
+        #       port: http
+        # {{- end -}}
+        {{- if eq (.Values.service.grpc | default false) true }}
+        - name: healthcheck
+          image: 456614517894.dkr.ecr.us-east-1.amazonaws.com/grpchealthcheck:latest
+          command: [ "/bin/sh", "-c", "--" ]
+          args: [ "while :; do echo; sleep 30; done;" ]
+          readinessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:{{ .Values.service.port }}"]
+            initialDelaySeconds: 5
+          livenessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:{{ .Values.service.port }}"]
+            initialDelaySeconds: 10
+        {{- end }}
+      {{- end }}

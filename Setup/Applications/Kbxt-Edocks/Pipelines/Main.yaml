@@ -1,0 +1,17 @@
+harnessApiVersion: '1.0'
+type: PIPELINE
+pipelineStages:
+- type: ENV_STATE
+  name: Canary Deploy
+  parallel: false
+  skipCondition:
+    type: DO_NOT_SKIP
+  stageName: STAGE 1
+  workflowName: Canary Deploy
+  workflowVariables:
+  - entityType: SERVICE
+    name: Service
+    value: echo-harness
+  - entityType: INFRASTRUCTURE_DEFINITION
+    name: InfraDefinition_KUBERNETES
+    value: Edock-Prod-kbxt-edock

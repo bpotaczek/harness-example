@@ -1,0 +1,28 @@
+{{ if .Values.service }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    name: {{ .Values.name }}
+    app.kubernetes.io/name: {{ .Values.name }}
+    helm.sh/chart: {{ .Values.name }}
+    app.kubernetes.io/instance: {{ .Values.name }}
+    app.kubernetes.io/managed-by: {{ .Values.name }}
+spec:
+  ports:
+  # - name: http
+  #   port: {{ .Values.service.port }}
+  #   protocol: TCP
+  - port: 8080
+    name: high
+    protocol: TCP
+    targetPort: 8080
+  - port: 80
+    name: low
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: {{ .Values.name }}
+  type: {{ .Values.service.type }}
+{{ end }}

@@ -1,0 +1,31 @@
+#harness.io/skip-file-for-deploy
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+metadata:
+  name: {{ .Values.name }}-routes
+  labels:
+    version: 'v1'
+  namespace: 'gloo-system'
+spec:
+  routes:
+  - matchers:
+    - prefix: /kafka
+    routeAction:
+      multi:
+        destinations:
+        - destination:
+            subset:
+              values:
+                version: {{ .Values.version | quote }}
+            upstream:
+              name: {{ .Values.name }}
+              namespace: gloo-system
+          weight: 50
+        - destination:
+            subset:
+              values:
+                version: 'release'
+            upstream:
+              name: {{ .Values.name }}
+              namespace: gloo-system
+          weight: 50
